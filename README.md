@@ -1,5 +1,5 @@
 
-# "Inversión extranjera directa en México 1999-2017"
+# Inversión extranjera directa en México 1999-2017
 
 By: [Patricio R. Estévez Soto](https://twitter.com/prestevez)
 
