@@ -1,0 +1,93 @@
+---
+output:
+  md_document
+---
+
+# "Inversión extranjera directa en México 1999-2017"
+
+By: [Patricio R. Estévez Soto](https://twitter.com/prestevez)
+
+Revisión de la inversión extranjera directa (IED) hacia México según datos de la [Secretaría de Economía](https://datos.gob.mx/busca/dataset/inversion-extranjera-directa/resource/caca107b-ad92-4e2e-b862-3d9b3e4050eb). 
+
+```{r paquetes, echo=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+# Also requires reshape2 and knitr
+```
+
+```{r data-input, echo=FALSE, message=FALSE}
+# Data input
+
+fdi <- read.csv("fdi_mex.csv")
+
+names(fdi)[-1] <- paste(c("I", "II", "III", "IV"), rep(1999:2017, each = 4))
+
+mfdi <- reshape2::melt(fdi, id.vars = "Entidad")
+names(mfdi)[-1] <- c("qrtr", "fdi")
+mfdi$CDMX <- mfdi$Entidad
+
+levels(mfdi$CDMX)[-7] <- "Resto del país"
+
+mfdi$year <- rep(rep(1999:2017, each = 32), each = 4)
+
+
+mfdi %>%
+    group_by(year, CDMX) %>%
+    summarise(yrly_fdi = sum(fdi)) -> yrly_fdi
+
+yrly_fdi %>%
+    group_by(year) %>%
+    summarise(totalfdi = sum(yrly_fdi)) -> totfdi
+
+yrly_fdi <- left_join(yrly_fdi, totfdi)
+
+yrly_fdi %>%
+    mutate(propfdi = yrly_fdi/totalfdi) -> yrly_fdi
+```
+
+
+Visualización gráfica de las tendencias de inversión extranjera directa.
+
+```{r plots, echo=FALSE, message=FALSE}
+p <- ggplot(yrly_fdi, aes(x = year, y = yrly_fdi, color = CDMX))
+
+p + geom_line() + geom_smooth(se = FALSE) + 
+    ggtitle("Inversión Extranjera Directa (Totales)") + 
+    ylab("Millones de dólares") + 
+    xlab("Año")
+
+p2 <- ggplot(yrly_fdi, aes(x = year, y = propfdi, color = CDMX))
+
+p2 + geom_line() + geom_smooth(se = FALSE) + 
+    ggtitle("Inversión Extranjera Directa (Proporción)") + 
+    ylab("Proporción") + 
+    xlab("Año")
+
+```
+
+Proporción de IED dirigido a la CDMX entre 2001 y 2004.
+
+```{r fdi-2001-2004, echo=FALSE, message=FALSE}
+yrly_fdi %>%
+    filter(year %in% 2001:2004) %>%
+    group_by(CDMX) %>%
+    summarise(sum(yrly_fdi)) -> amloperiod
+
+amloperiod$pfdi <- amloperiod$`sum(yrly_fdi)`/sum(amloperiod$`sum(yrly_fdi)`)
+knitr::kable(amloperiod, col.names = c("","IED", "%"))
+```
+
+El total de IED dirigido al país fue de 97,239 millones de dólares. La CDMX atrajo 25,642 millones de dólares. Por tanto, atrajo solo el 26% de la IED nacional.
+
+Histórico de atracción de IED y proporción de la CDMX.
+
+```{r historico, echo = FALSE}
+
+tb1 <- reshape2::dcast(yrly_fdi, year ~ CDMX, value.var = "yrly_fdi")
+tb2 <- reshape2::dcast(yrly_fdi, year ~ CDMX, value.var = "totalfdi")
+tb3 <- reshape2::dcast(yrly_fdi, year ~ CDMX, value.var = "propfdi")
+finaltb <- cbind(tb1, tb2[,-1], (tb3[,-1] * 100))
+knitr::kable(finaltb[,c(1,3,4,7)], digits = 2, 
+             col.names = c("Año", "IED: CDMX",
+                           "IED: Nacional", "% CDMX" ))
+```
